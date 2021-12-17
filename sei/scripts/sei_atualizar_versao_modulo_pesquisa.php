@@ -187,8 +187,8 @@ class MdPesqAtualizadorSeiRN extends InfraRN
         $objInfraMetaBD->setBolValidarIdentificador(true);
 
         $this->logar('ALTERANDO A TABELA - alterando md_pesq_parametro.valor para NULL');
-        $objInfraMetaBD->alterarColuna('md_pesq_parametro', 'valor', $objInfraMetaBD->tipoTextoGrande(), 'NULL');
-
+        // $objInfraMetaBD->alterarColuna('md_pesq_parametro', 'valor', $objInfraMetaBD->tipoTextoGrande(), 'NULL');
+        $this->logar('TST - TABELA JA ESTÁ CORRETA NO ORACLE!');
 
         $this->logar('ATUALIZANDO PARÂMETRO ' . $this->nomeParametroModulo . ' NA TABELA infra_parametro PARA CONTROLAR A VERSÃO DO MÓDULO');
         BancoSEI::getInstance()->executarSql('UPDATE infra_parametro SET valor = \'4.0.0\' WHERE nome = \'' . $this->nomeParametroModulo . '\' ');

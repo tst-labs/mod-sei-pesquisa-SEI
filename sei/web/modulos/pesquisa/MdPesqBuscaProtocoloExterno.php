@@ -100,7 +100,7 @@ class  MdPesqBuscaProtocoloExterno
         if ($bolPesquisaDocumentoProcessoPublico) {
 
             if (in_array("R", $checkbox)) {
-                array_push($grupo, "(sta_prot:R AND tipo_aces:P)");
+                array_push($grupo, "(sta_prot:R AND tipo_aces_g:P)");
             }
 
             // PESQUISAR EM: DOCUMENTOS GERADOS
@@ -233,7 +233,7 @@ class  MdPesqBuscaProtocoloExterno
                 $titulo = "";
                 $regResultado = $registros[$i];
 
-                $dados["tipo_acesso"] = InfraSolrUtil::obterTag($regResultado, 'tipo_aces', 'str');
+                $dados["tipo_acesso"] = InfraSolrUtil::obterTag($regResultado, 'tipo_aces_g', 'str');
                 $dados["id_unidade_acesso"] = InfraSolrUtil::obterTag($regResultado, 'id_uni_aces', 'str');
                 $dados["id_unidade_geradora"] = InfraSolrUtil::obterTag($regResultado, 'id_uni_ger', 'int');
                 //$dados["id_unidade_aberto"] = $registros[$i]->xpath("str[@name='id_unidade_aberto']");

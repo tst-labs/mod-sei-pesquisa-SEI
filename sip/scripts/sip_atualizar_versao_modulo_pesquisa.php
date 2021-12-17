@@ -152,94 +152,97 @@ class MdPesqAtualizadorSipRN extends InfraRN
         $objSistemaDTO->retNumIdSistema();
         $objSistemaDTO->setStrSigla('SEI');
 
-        $objSistemaDTO = $objSistemaRN->consultar($objSistemaDTO);
+        $objsSistemaDTO = $objSistemaRN->listar($objSistemaDTO);
 
-        if ($objSistemaDTO == null) {
-            throw new InfraException('Sistema SEI não encontrado.');
+        foreach ($objsSistemaDTO as $objSistemaDTO) {
+            if ($objSistemaDTO == null) {
+                throw new InfraException('Sistema SEI não encontrado.');
+            }
+
+            $numIdSistemaSei = $objSistemaDTO->getNumIdSistema();
+    
+            $objPerfilDTO = new PerfilDTO();
+            $objPerfilDTO->retNumIdPerfil();
+            $objPerfilDTO->setNumIdSistema($numIdSistemaSei);
+            $objPerfilDTO->setStrNome('Administrador');
+            $objPerfilDTO = $objPerfilRN->consultar($objPerfilDTO);
+
+            if ($objPerfilDTO == null) {
+                throw new InfraException('Perfil Administrador do sistema SEI não encontrado.');
+            }
+    
+            $numIdPerfilSeiAdministrador = $objPerfilDTO->getNumIdPerfil();
+    
+            $objMenuDTO = new MenuDTO();
+            $objMenuDTO->retNumIdMenu();
+            $objMenuDTO->setNumIdSistema($numIdSistemaSei);
+            $objMenuDTO->setStrNome('Principal');
+            $objMenuDTO = $objMenuRN->consultar($objMenuDTO);
+
+            if ($objMenuDTO == null) {
+                throw new InfraException('Menu do sistema SEI não encontrado.');
+            }
+
+            $numIdMenuSei = $objMenuDTO->getNumIdMenu();
+    
+            $objItemMenuDTO = new ItemMenuDTO();
+            $objItemMenuDTO->retNumIdItemMenu();
+            $objItemMenuDTO->setNumIdSistema($numIdSistemaSei);
+            $objItemMenuDTO->setStrRotulo('Administração');
+            $objItemMenuDTO = $objItemMenuRN->consultar($objItemMenuDTO);
+
+            if ($objItemMenuDTO == null) {
+                throw new InfraException('Item de menu Administração do sistema SEI não encontrado.');
+            }
+
+            $numIdItemMenuSeiAdministracao = $objItemMenuDTO->getNumIdItemMenu();
+    
+            $this->logar('ATUALIZANDO RECURSOS, MENUS E PERFIS DO MÓDULO DE PESQUISA NA BASE DO SIP...');
+    
+            //criando os recursos e vinculando-os aos perfil Administrador
+            $this->adicionarRecursoPerfil($numIdSistemaSei, $numIdPerfilSeiAdministrador, 'md_pesq_parametro_alterar');
+            $this->adicionarRecursoPerfil($numIdSistemaSei, $numIdPerfilSeiAdministrador, 'md_pesq_parametro_consultar');
+            $this->adicionarRecursoPerfil($numIdSistemaSei, $numIdPerfilSeiAdministrador, 'md_pesq_parametro_cadastrar');
+            $objRecursoDTO = $this->adicionarRecursoPerfil($numIdSistemaSei, $numIdPerfilSeiAdministrador, 'md_pesq_parametro_listar');
+
+            //criando menu
+            $objItemMenuPesquisaPublica = $this->adicionarItemMenu($numIdSistemaSei, $numIdPerfilSeiAdministrador, $numIdMenuSei, $numIdItemMenuSeiAdministracao, null, $strRotuloItemMenuPesquisaPublica, 0);
+            $this->adicionarItemMenu($numIdSistemaSei, $numIdPerfilSeiAdministrador, $numIdMenuSei, $objItemMenuPesquisaPublica->getNumIdItemMenu(), $objRecursoDTO->getNumIdRecurso(), $strRotuloItemMenuParametrosPesquisaPublica, 10);
+    
+    
+            //Adicionando regra de auditoria
+            $objRegraAuditoriaDTO = new RegraAuditoriaDTO();
+            $objRegraAuditoriaDTO->retNumIdRegraAuditoria();
+            $objRegraAuditoriaDTO->setNumIdRegraAuditoria(null);
+            $objRegraAuditoriaDTO->setStrSinAtivo('S');
+            $objRegraAuditoriaDTO->setNumIdSistema($numIdSistemaSei);
+            $objRegraAuditoriaDTO->setArrObjRelRegraAuditoriaRecursoDTO(array());
+            $objRegraAuditoriaDTO->setStrDescricao('Modulo_Pesquisa_Publica');
+
+            $objRegraAuditoriaRN = new RegraAuditoriaRN();
+            $objRegraAuditoriaDTO = $objRegraAuditoriaRN->cadastrar($objRegraAuditoriaDTO);
+
+            $rs = BancoSip::getInstance()->consultarSql('select id_recurso from recurso where id_sistema=' . $numIdSistemaSei . ' and nome in (
+            \'md_pesq_parametro_alterar\',
+            \'md_pesq_parametro_consultar\',
+            \'md_pesq_parametro_cadastrar\',
+            \'md_pesq_parametro_listar\')'
+            );
+
+            //CRIANDO REGRA DE AUDITORIA PARA NOVOS RECURSOS RECEM ADICIONADOS
+            foreach ($rs as $recurso) {
+                BancoSip::getInstance()->executarSql('insert into rel_regra_auditoria_recurso (id_regra_auditoria, id_sistema, id_recurso) values (' . $objRegraAuditoriaDTO->getNumIdRegraAuditoria() . ', ' . $numIdSistemaSei . ', ' . $recurso['id_recurso'] . ')');
+            }
+
+
+            $objReplicacaoRegraAuditoriaDTO = new ReplicacaoRegraAuditoriaDTO();
+            $objReplicacaoRegraAuditoriaDTO->setStrStaOperacao('A');
+            $objReplicacaoRegraAuditoriaDTO->setNumIdRegraAuditoria($objRegraAuditoriaDTO->getNumIdRegraAuditoria());
+
+            $objSistemaRN = new SistemaRN();
+            $objSistemaRN->replicarRegraAuditoria($objReplicacaoRegraAuditoriaDTO);
         }
 
-        $numIdSistemaSei = $objSistemaDTO->getNumIdSistema();
-
-        $objPerfilDTO = new PerfilDTO();
-        $objPerfilDTO->retNumIdPerfil();
-        $objPerfilDTO->setNumIdSistema($numIdSistemaSei);
-        $objPerfilDTO->setStrNome('Administrador');
-        $objPerfilDTO = $objPerfilRN->consultar($objPerfilDTO);
-
-        if ($objPerfilDTO == null) {
-            throw new InfraException('Perfil Administrador do sistema SEI não encontrado.');
-        }
-
-        $numIdPerfilSeiAdministrador = $objPerfilDTO->getNumIdPerfil();
-
-        $objMenuDTO = new MenuDTO();
-        $objMenuDTO->retNumIdMenu();
-        $objMenuDTO->setNumIdSistema($numIdSistemaSei);
-        $objMenuDTO->setStrNome('Principal');
-        $objMenuDTO = $objMenuRN->consultar($objMenuDTO);
-
-        if ($objMenuDTO == null) {
-            throw new InfraException('Menu do sistema SEI não encontrado.');
-        }
-
-        $numIdMenuSei = $objMenuDTO->getNumIdMenu();
-
-        $objItemMenuDTO = new ItemMenuDTO();
-        $objItemMenuDTO->retNumIdItemMenu();
-        $objItemMenuDTO->setNumIdSistema($numIdSistemaSei);
-        $objItemMenuDTO->setStrRotulo('Administração');
-        $objItemMenuDTO = $objItemMenuRN->consultar($objItemMenuDTO);
-
-        if ($objItemMenuDTO == null) {
-            throw new InfraException('Item de menu Administração do sistema SEI não encontrado.');
-        }
-
-        $numIdItemMenuSeiAdministracao = $objItemMenuDTO->getNumIdItemMenu();
-
-        $this->logar('ATUALIZANDO RECURSOS, MENUS E PERFIS DO MÓDULO DE PESQUISA NA BASE DO SIP...');
-
-        //criando os recursos e vinculando-os aos perfil Administrador
-        $this->adicionarRecursoPerfil($numIdSistemaSei, $numIdPerfilSeiAdministrador, 'md_pesq_parametro_alterar');
-        $this->adicionarRecursoPerfil($numIdSistemaSei, $numIdPerfilSeiAdministrador, 'md_pesq_parametro_consultar');
-        $this->adicionarRecursoPerfil($numIdSistemaSei, $numIdPerfilSeiAdministrador, 'md_pesq_parametro_cadastrar');
-        $objRecursoDTO = $this->adicionarRecursoPerfil($numIdSistemaSei, $numIdPerfilSeiAdministrador, 'md_pesq_parametro_listar');
-
-        //criando menu
-
-        $objItemMenuPesquisaPublica = $this->adicionarItemMenu($numIdSistemaSei, $numIdPerfilSeiAdministrador, $numIdMenuSei, $numIdItemMenuSeiAdministracao, null, $strRotuloItemMenuPesquisaPublica, 0);
-        $this->adicionarItemMenu($numIdSistemaSei, $numIdPerfilSeiAdministrador, $numIdMenuSei, $objItemMenuPesquisaPublica->getNumIdItemMenu(), $objRecursoDTO->getNumIdRecurso(), $strRotuloItemMenuParametrosPesquisaPublica, 10);
-
-
-        //Adicionando regra de auditoria
-        $objRegraAuditoriaDTO = new RegraAuditoriaDTO();
-        $objRegraAuditoriaDTO->retNumIdRegraAuditoria();
-        $objRegraAuditoriaDTO->setNumIdRegraAuditoria(null);
-        $objRegraAuditoriaDTO->setStrSinAtivo('S');
-        $objRegraAuditoriaDTO->setNumIdSistema($numIdSistemaSei);
-        $objRegraAuditoriaDTO->setArrObjRelRegraAuditoriaRecursoDTO(array());
-        $objRegraAuditoriaDTO->setStrDescricao('Modulo_Pesquisa_Publica');
-
-        $objRegraAuditoriaRN = new RegraAuditoriaRN();
-        $objRegraAuditoriaDTO = $objRegraAuditoriaRN->cadastrar($objRegraAuditoriaDTO);
-
-        $rs = BancoSip::getInstance()->consultarSql('select id_recurso from recurso where id_sistema=' . $numIdSistemaSei . ' and nome in (
-        \'md_pesq_parametro_alterar\',
-		\'md_pesq_parametro_consultar\',
-		\'md_pesq_parametro_cadastrar\',
-		\'md_pesq_parametro_listar\')'
-        );
-
-        //CRIANDO REGRA DE AUDITORIA PARA NOVOS RECURSOS RECEM ADICIONADOS
-        foreach ($rs as $recurso) {
-            BancoSip::getInstance()->executarSql('insert into rel_regra_auditoria_recurso (id_regra_auditoria, id_sistema, id_recurso) values (' . $objRegraAuditoriaDTO->getNumIdRegraAuditoria() . ', ' . $numIdSistemaSei . ', ' . $recurso['id_recurso'] . ')');
-        }
-
-        $objReplicacaoRegraAuditoriaDTO = new ReplicacaoRegraAuditoriaDTO();
-        $objReplicacaoRegraAuditoriaDTO->setStrStaOperacao('A');
-        $objReplicacaoRegraAuditoriaDTO->setNumIdRegraAuditoria($objRegraAuditoriaDTO->getNumIdRegraAuditoria());
-
-        $objSistemaRN = new SistemaRN();
-        $objSistemaRN->replicarRegraAuditoria($objReplicacaoRegraAuditoriaDTO);
 
         $this->logar('ATUALIZANDO PARÂMETRO ' . $this->nomeParametroModulo . ' NA TABELA infra_parametro PARA CONTROLAR A VERSÃO DO MÓDULO');
         BancoSip::getInstance()->executarSql('UPDATE infra_parametro SET valor = \'3.0.0\' WHERE nome = \'' . $this->nomeParametroModulo . '\' ');
